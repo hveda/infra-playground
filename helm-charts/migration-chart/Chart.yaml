@@ -1,0 +1,11 @@
+apiVersion: v2
+name: migration
+description: A Helm chart for running database migration
+
+type: application
+
+version: 0.1.0
+
+home: https://gitlab.com/ayobisa/devops/helm-charts
+sources:
+  - https://gitlab.com/ayobisa/devops/helm-charts

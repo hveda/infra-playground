@@ -1,0 +1,17 @@
+{{- if and .Values.server.enabled .Values.service.enabled (not .Values.worker.enabled) -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "server.fullname" . }}-test-connection"
+  labels:
+{{ include "app.labels" . | indent 4 }}
+  annotations:
+    helm.sh/hook: test-success
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args:  ['{{ include "server.fullname" . }}:{{ .Values.service.port }}{{ .Values.server.readiness.path }}']
+  restartPolicy: Never
+{{- end }}

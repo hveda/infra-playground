@@ -1,0 +1,267 @@
+{{- if and .Values.server.enabled (not .Values.worker.enabled) -}}
+{{- $name := include "server.name" . -}}
+{{- $fullname := include "server.fullname" . -}}
+{{- $port := include "server.port" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.server.autoReload }}
+    reloader.stakater.com/auto: "true"
+    {{- end }}
+    {{- with .Values.server.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  replicas: {{ .Values.server.replicas }}
+  selector:
+    matchLabels:
+      name: {{ $name }}
+      env: {{ .Values.meta.env }}
+      chart-name: {{ .Chart.Name }}
+  {{- with .Values.server.rollingUpdate }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .maxSurge }}
+      maxUnavailable: {{ .maxUnavailable }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        name: {{ $name }}
+        app-name: {{ .Values.meta.name }}
+        version: {{ include "meta.version" . }}
+        env: {{ .Values.meta.env }}
+        chart-name: {{ .Chart.Name }}
+        chart-version: {{ .Chart.Version }}
+      annotations:
+        sidecar.istio.io/inject: {{ .Values.server.istio.injected | quote }}
+        {{- with .Values.server.podAnnotations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          image: "{{ .Values.image.repository }}:{{ include "image.tag" . }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.server.command }}
+          command:
+            {{- range . }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
+          {{- with .Values.server.args }}
+          args:
+            {{- range . }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
+          ports:
+            {{- if .Values.server.portOverride }}
+              {{- toYaml .Values.server.portOverride | nindent 12 }}
+            {{- else }}
+            - name: {{ .Values.server.type }}
+              containerPort: {{ .Values.server.port }}
+              protocol: TCP
+            {{- end }}
+            {{- with .Values.server.extraPorts }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.server.liveness.enabled }}
+          livenessProbe:
+          {{- if .Values.server.liveness.override }}
+            {{- toYaml .Values.server.liveness.override | nindent 12 }}
+          {{- else }}
+            tcpSocket:
+              port: {{ $port }}
+            initialDelaySeconds: {{ .Values.server.liveness.delay }}
+            periodSeconds: {{ .Values.server.liveness.period }}
+            timeoutSeconds: {{ .Values.server.liveness.timeout }}
+            failureThreshold: {{ .Values.server.liveness.failure }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.server.readiness.enabled }}
+          readinessProbe:
+          {{- if .Values.server.readiness.override }}
+            {{- toYaml .Values.server.readiness.override | nindent 12 }}
+          {{- else }}
+            {{- if eq .Values.server.type "http" }}
+            httpGet:
+              path: {{ .Values.server.readiness.path }}
+              port: {{ $port }}
+            {{- else if eq .Values.server.type "grpc" }}
+            exec:
+              command: ["grpc-health-probe", "-addr=:{{ $port }}"]
+            {{- end }}
+            initialDelaySeconds: {{ .Values.server.readiness.delay }}
+            periodSeconds: {{ .Values.server.readiness.period }}
+            timeoutSeconds: {{ .Values.server.readiness.timeout }}
+            successThreshold: {{ .Values.server.readiness.success }}
+            failureThreshold: {{ .Values.server.readiness.failure }}
+          {{- end }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+          {{- if or .Values.secrets.envFrom .Values.configMaps.envFrom }}
+          envFrom:
+          {{- with .Values.secrets.envFrom }}
+          {{- range . }}
+            - secretRef:
+                name: {{ tpl . $ }}
+          {{- end }}
+          {{- end }}
+          {{- with .Values.configMaps.envFrom }}
+          {{- range . }}
+            - configMapRef:
+                name: {{ tpl . $ }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          env:
+            - name: ENV_NAME
+              value: {{ .Values.meta.env }}
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            {{- with .Values.secrets.env }}
+            {{- range $secret := . }}
+            {{- range .keys }}
+            - name: {{ tpl . $ }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ tpl $secret.name $ }}
+                  key: {{ tpl . $ }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.configMaps.env }}
+            {{- range $configMap := . }}
+            {{- range .keys }}
+            - name: {{ tpl . $ }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ tpl $configMap.name $ }}
+                  key: {{ tpl . $ }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.server.env }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if or .Values.secrets.volumes .Values.configMaps.volumes .Values.extraVolumeMounts }}
+          volumeMounts:
+          {{- with .Values.secrets.volumes }}
+          {{- range $secret := . }}
+          {{- range .mounts }}
+            - name: {{ tpl $secret.name $ }}-secret
+              mountPath: {{ tpl .mountPath $ }}
+              {{- with .subPath }}
+              subPath: {{ . }}
+              {{- end }}
+              {{- with .readOnly }}
+              readOnly: {{ . }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- with .Values.configMaps.volumes }}
+          {{- range $configMap := . }}
+          {{- range .mounts }}
+            - name: {{ tpl $configMap.name $ }}-config
+              mountPath: {{ tpl .mountPath $ }}
+              {{- with .subPath }}
+              subPath: {{ . }}
+              {{- end }}
+              {{- with .readOnly }}
+              readOnly: {{ . }}
+              {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- with .Values.extraVolumeMounts }}
+            {{- include "tplValue" (dict "value" . "context" $) | nindent 12 }}
+          {{- end }}
+          {{- end }}
+      {{- if or .Values.secrets.volumes .Values.configMaps.volumes .Values.extraVolumes }}
+      volumes:
+      {{- with .Values.secrets.volumes }}
+      {{- range . }}
+        - name: {{ tpl .name $ }}-secret
+          secret:
+            secretName: {{ tpl .name $ }}
+            {{- with .items }}
+            items:
+            {{- range . }}
+              - key: {{ tpl .key $ }}
+                path: {{ .path | default (tpl .key $) }}
+            {{- end }}
+            {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.configMaps.volumes }}
+      {{- range . }}
+        - name: {{ tpl .name $ }}-config
+          configMap:
+            name: {{ tpl .name $ }}
+            {{- with .items }}
+            items:
+            {{- range . }}
+              - key: {{ tpl .key $ }}
+                path: {{ .path | default (tpl .key $) }}
+            {{- end }}
+            {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.extraVolumes }}
+        {{- include "tplValue" (dict "value" . "context" $) | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      restartPolicy: {{ .Values.server.restartPolicy }}
+      dnsPolicy: {{ .Values.server.dnsPolicy }}
+      {{- with .Values.server.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.server.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      tolerations:
+        {{- if eq .Values.server.machine.type "preemptible" }}
+        - key: node-role
+          operator: Equal
+          value: app-preemptible
+          effect: NoExecute
+        {{- else }}
+        - key: node-role
+          operator: Equal
+          value: app-standard
+          effect: NoExecute
+        {{- end }}
+        {{- with .Values.server.tolerations }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

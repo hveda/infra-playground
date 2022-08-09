@@ -1,0 +1,11 @@
+apiVersion: v2
+name: config
+description: A Helm chart for kubernetes config maps
+
+type: application
+
+version: 0.1.1
+
+home: https://gitlab.com/ayobisa/devops/helm-charts
+sources:
+  - https://gitlab.com/ayobisa/devops/helm-charts

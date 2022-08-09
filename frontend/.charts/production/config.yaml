@@ -1,0 +1,7 @@
+config:
+  enabled: true
+
+  data:
+    SERVER_HOST: "0.0.0.0"
+    SERVER_PORT: "8080"
+    LOG_LEVEL: "info"

@@ -1,0 +1,81 @@
+# Default values for app.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+meta:
+  name: ""
+  env: ""
+  version: ""
+
+image:
+  repository: ""
+  tag: latest
+
+  pullPolicy: IfNotPresent
+
+  pullSecrets: []
+
+secrets:
+  env: []
+    # - name: ""
+    #   keys: []
+
+  volumes: []
+    # - name: ""
+    #   mountPath: ""
+    #   subPath: ""
+    #   readOnly: true
+
+configMaps:
+  env: []
+    # - name: ""
+    #   keys: []
+
+  volumes: []
+    # - name: ""
+    #   mountPath: ""
+    #   subPath: ""
+    #   readOnly: true
+
+extraVolumes: []
+  # - name: ""
+  #   emptyDir: {}
+
+extraVolumeMounts: []
+  # - name: ""
+  #   mountPath: ""
+
+migration:
+  enabled: false
+
+  nameOverride: ""
+  fullnameOverride: ""
+
+  annotations: {}
+
+  autoReload: true
+
+  command: []
+
+  istio:
+    injected: false
+
+  resources: {}
+
+  env: []
+
+  restartPolicy: Never
+
+  dnsPolicy: ClusterFirst
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+  backoffLimit: 10
+
+  deadlineSeconds: ""
+
+  ttlSeconds: ""

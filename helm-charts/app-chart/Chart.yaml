@@ -1,0 +1,11 @@
+apiVersion: v2
+name: app
+description: A Helm chart for moladinTech app
+
+type: application
+
+version: 0.1.3
+
+home: https://bitbucket.org/moladinTech/devops/helm-charts
+sources:
+  - https://bitbucket.org/moladinTech/devops/helm-charts

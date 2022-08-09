@@ -1,0 +1,281 @@
+# Default values for app.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+meta:
+  name: ""
+  env: ""
+  version: ""
+  ingressHost: ""
+  ingressPath: ""
+  internalHostname: ""
+
+image:
+  repository: ""
+  tag: latest
+
+  pullPolicy: IfNotPresent
+
+  pullSecrets: []
+
+secrets:
+  envFrom: []
+    # - secret-name
+    # - another-secret-name
+
+  env: []
+    # - name: ""
+    #   keys: []
+
+  volumes: []
+    # - name: ""
+    #   mounts:
+    #     - mountPath: ""
+    #       subPath: ""
+    #       readOnly: true
+    #   items:
+    #     - key:
+    #       path:
+
+configMaps:
+  envFrom: []
+    # - config-name
+    # - another-config-name
+
+  env: []
+    # - name: ""
+    #   keys: []
+
+  volumes: []
+    # - name: ""
+    #   mounts:
+    #     - mountPath: ""
+    #       subPath: ""
+    #       readOnly: true
+    #   items:
+    #     - key:
+    #       path:
+
+extraVolumes: []
+  # - name: ""
+  #   emptyDir: {}
+
+extraVolumeMounts: []
+  # - name: ""
+  #   mountPath: ""
+
+server:
+  enabled: false
+
+  nameOverride: ""
+  fullnameOverride: ""
+
+  annotations: {}
+
+  podAnnotations: {}
+
+  autoReload: true
+
+  replicas: 1
+
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 25%
+
+  command: []
+  args: []
+
+  type: http # http/grpc
+
+  port: 80
+
+  portOverride: []
+    # - name: grpc-web
+    #   containerPort: 9090
+    #   protocol: UDP
+
+  extraPorts: []
+    # - name: new-port
+    #   containerPort: 123
+    #   protocol: TCP
+
+  istio:
+    injected: false
+
+  liveness:
+    enabled: true
+    delay: 10
+    period: 10
+    timeout: 3
+    failure: 3
+    override: {}
+      # exec:
+      #   command:
+      #     - cat
+      #     - /tmp/healthy
+      # initialDelaySeconds: 5
+      # periodSeconds: 5
+
+  readiness:
+    enabled: true
+    path: /health/readiness
+    delay: 5
+    period: 10
+    timeout: 3
+    success: 1
+    failure: 3
+    override: {}
+      # tcpSocket:
+      #   port: 8080
+      # initialDelaySeconds: 5
+      # periodSeconds: 10
+
+  resources: {}
+
+  env: []
+
+  restartPolicy: Always
+
+  dnsPolicy: ClusterFirst
+
+  machine:
+    type: standard # standard/preemptible
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+worker:
+  enabled: false
+
+  nameOverride: ""
+  fullnameOverride: ""
+
+  annotations: {}
+
+  podAnnotations: {}
+
+  autoReload: true
+
+  replicas: 1
+
+  rolling:
+    surge: 25%
+    unavailable: 25%
+
+  command: []
+  args: []
+
+  istio:
+    injected: false
+
+  liveness:
+    enabled: false
+    delay: 10
+    period: 10
+    timeout: 3
+    failure: 3
+    command:
+      - rm
+      - /tmp/healthz
+    override: {}
+      # exec:
+      #   command:
+      #     - cat
+      #     - /tmp/healthy
+      # initialDelaySeconds: 5
+      # periodSeconds: 5
+
+  resources: {}
+
+  env: []
+
+  restartPolicy: Always
+
+  dnsPolicy: ClusterFirst
+
+  machine:
+    type: standard # standard/preemptible
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+service:
+  enabled: false
+
+  annotations: {}
+
+  type: ClusterIP
+
+  port: 80
+
+  portOverride: []
+    # - port: 9090
+    #   targetPort: grpc-web
+    #   protocol: TCP
+    #   name: grpc-web-svc
+
+  extraPorts: []
+    # - port: 456
+    #   targetPort: new-port
+    #   protocol: TCP
+    #   name: new-port-svc
+
+ingress:
+  enabled: false
+
+  annotations: {}
+
+  className: "kong"
+
+#  issuer:
+#    name: letsencrypt-dns01
+#    type: cluster # cluster/namespace
+
+  tls:
+    - hosts: []
+
+  hosts: []
+
+internalIngress:
+  enabled: false
+
+  annotations: {}
+
+  className: "nginx-internal"
+
+  tls:
+    - hosts: []
+
+  hosts: []
+
+virtualService:
+  enabled: false
+
+  gateways: []
+
+  hosts: []
+
+  routes: []
+
+autoscaling:
+  enabled: false
+
+  annotations: {}
+
+  minReplicas: 0
+  maxReplicas: 0
+
+  cpu:
+    target:
+      type: Utilization
+      averageUtilization: 75
+  memory:
+    target:
+      type: Utilization
+      averageUtilization: 75

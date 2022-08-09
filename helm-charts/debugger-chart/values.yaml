@@ -1,0 +1,34 @@
+# Default values for debugger.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+annotations: {}
+
+replicas: 1
+
+image:
+  repository: asia.gcr.io/ayobisa-v2/debugger
+  tag: latest
+
+  pullPolicy: Always
+
+  pullSecrets: []
+
+command: []
+
+istio:
+  injected: false
+
+resources: {}
+
+env: []
+
+restartPolicy: Always
+
+dnsPolicy: ClusterFirst
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

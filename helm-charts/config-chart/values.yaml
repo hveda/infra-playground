@@ -1,0 +1,33 @@
+# Default values for config.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+meta:
+  name: ""
+  env: ""
+
+config:
+  enabled: false
+
+  nameOverride: ""
+  fullnameOverride: ""
+
+  labels: {}
+
+  annotations: {}
+
+  data: {}
+
+secret:
+  enabled: false
+
+  nameOverride: ""
+  fullnameOverride: ""
+
+  labels: {}
+
+  annotations: {}
+
+  type: Opaque
+
+  data: {}

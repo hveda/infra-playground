@@ -1,0 +1,5 @@
+{{- if .Values.migration.enabled }}
+View the migration output by running this command:
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "job-name={{ include "migration.fullname" . }}" -o jsonpath="{.items[*].metadata.name}")
+  kubectl logs -f $POD_NAME
+{{- end }}

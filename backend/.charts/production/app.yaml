@@ -1,0 +1,37 @@
+secrets:
+  envFrom:
+    - "{{ .Values.meta.name }}-config-{{ .Values.meta.env }}"
+
+configMaps:
+  envFrom:
+    - "{{ .Values.meta.name }}-config-{{ .Values.meta.env }}"
+
+server:
+  enabled: true
+
+  port: 3030
+
+  istio:
+    injected: false
+
+  readiness:
+    path: /health/readiness
+
+  resources:
+    requests:
+      cpu: 15m
+      memory: 105M
+    limits:
+      cpu: 75m
+      memory: 512M
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+
+virtualService:
+  enabled: false
+
+worker:
+  enabled: false

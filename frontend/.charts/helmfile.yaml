@@ -1,0 +1,34 @@
+repositories:
+  - name: ayobisa
+    url: ../chart-repo
+    oci: true
+    username: _json_key_base64
+    password: {{ requiredEnv "CHART_SA_KEY" }}
+
+releases:
+  - name: {{ requiredEnv "APP_NAME" }}-app-{{ requiredEnv "ENV" }}
+    namespace: default
+    labels:
+      tier: app
+      type: main
+    chart: ayobisa/app-chart
+    version: latest
+    values:
+      - {{ requiredEnv "ENV" }}/app.yaml
+      - {{ requiredEnv "ENV" }}/ingress.yaml.gotmpl
+      - values.yaml.gotmpl
+    needs:
+      - default/{{ requiredEnv "APP_NAME" }}-config-{{ requiredEnv "ENV" }}
+
+  - name: {{ requiredEnv "APP_NAME" }}-config-{{ requiredEnv "ENV" }}
+    namespace: default
+    labels:
+      tier: config
+      type: main
+    chart: ayobisa/config-chart
+    version: latest
+    values:
+      - {{ requiredEnv "ENV" }}/config.yaml
+      - values.yaml.gotmpl
+    secrets:
+      - {{ requiredEnv "ENV" }}/secret.yaml

@@ -1,0 +1,64 @@
+{{- if and .Values.server.enabled .Values.service.enabled .Values.ingress.enabled .Values.internalIngress.enabled (not .Values.worker.enabled) -}}
+{{- $fullname := include "server.fullname" . -}}
+{{- $svcPort := .Values.service.port -}}
+{{- if and .Values.internalIngress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
+  {{- if not (hasKey .Values.internalIngress.annotations "kubernetes.io/ingress.class") }}
+  {{- $_ := set .Values.internalIngress.annotations "kubernetes.io/ingress.class" .Values.internalIngress.className}}
+  {{- end }}
+{{- end }}
+{{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1
+{{- else if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: networking.k8s.io/v1beta1
+{{- else -}}
+apiVersion: extensions/v1beta1
+{{- end }}
+kind: Ingress
+metadata:
+  name: internal-{{ $fullname }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  annotations:
+    {{- if and .Values.internalIngress.tls .Values.internalIngress.issuer }}
+    cert-manager.io/{{- if eq .Values.internalIngress.issuer.type "cluster" -}}cluster-{{- end -}}issuer: {{ .Values.internalIngress.issuer.name }}
+    {{- end }}
+    {{- with .Values.internalIngress.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if and .Values.internalIngress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.internalIngress.className }}
+  {{- end }}
+  {{- if .Values.internalIngress.tls }}
+  tls:
+    {{- range .Values.internalIngress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.internalIngress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $fullname }}
+                port:
+                  number: {{ $svcPort }}
+              {{- else }}
+              serviceName: {{ $fullname }}
+              servicePort: {{ $svcPort }}
+              {{- end }}
+          {{- end }}
+    {{- end }}
+  {{- end }}

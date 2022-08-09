@@ -1,0 +1,24 @@
+secrets:
+  envFrom:
+    - "{{ .Values.meta.name }}-config-{{ .Values.meta.env }}"
+
+configMaps:
+  envFrom:
+    - "{{ .Values.meta.name }}-config-{{ .Values.meta.env }}"
+
+server:
+  enabled: true
+
+  port: 3030
+
+  istio:
+    injected: false
+
+autoscaling:
+  enabled: false
+
+virtualService:
+  enabled: false
+
+worker:
+  enabled: false

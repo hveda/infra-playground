@@ -1,0 +1,99 @@
+meta:
+  name: johnny
+  env: test
+  version: v0.1.0
+
+image:
+  repository: "ayobisa/test"
+  tag: v0.1.0
+
+secrets:
+  envFrom:
+    - "{{ .Values.meta.name }}-secret-{{ .Values.meta.env }}"
+    - test-secret-2
+
+  env:
+    - name: test-secret-global
+      keys:
+        - DB_GLOBAL_HOST
+        - DB_GLOBAL_USER
+        - DB_GLOBAL_PASS
+    - name: "{{ .Values.meta.name }}-secret-local-{{ .Values.meta.env }}"
+      keys:
+        - DB_HOST
+        - "{{ .Values.meta.name | upper }}_DB_USER"
+        - "{{ .Values.meta.name | upper }}_DB_PASS"
+
+  volumes:
+    - name: "{{ .Values.meta.name }}-secret-root-{{ .Values.meta.env }}"
+      mounts:
+        - mountPath: "/opt/{{ .Values.meta.name }}/params"
+
+    - name: test-secret-path-test
+      mounts:
+        - mountPath: "/opt/{{ .Values.meta.name }}/params/secret-path.json"
+          subPath: secrets/secret-path.json
+          readOnly: true
+
+        - mountPath: secrets/secret-path.yaml
+          subPath: secrets/secret-path.yaml
+          readOnly: true
+      items:
+        - key: "{{ .Values.meta.name }}/user"
+        - key: "{{ .Values.meta.name }}/password"
+
+configMaps:
+  envFrom:
+    - "{{ .Values.meta.name }}-config-{{ .Values.meta.env }}"
+    - test-config-2
+
+  env:
+    - name: "{{ .Values.meta.name }}-config-global-{{ .Values.meta.env }}"
+      keys:
+        - GLOBAL_HOST
+        - "{{ .Values.meta.name | upper }}_GLOBAL_ENV"
+    - name: test-config-local
+      keys:
+        - APP_HOST
+        - APP_ENV
+
+  volumes:
+    - name: test-config-test
+      mounts:
+        - mountPath: configs
+          readOnly: true
+
+    - name: "{{ .Values.meta.name }}-config-path-{{ .Values.meta.env }}"
+      mounts:
+        - mountPath: configs/config-path.json
+          subPath: config-path.json
+          readOnly: true
+
+        - mountPath: "/opt/{{ .Values.meta.name }}/params/config-path.yaml"
+          subPath: config-path.yaml
+          readOnly: true
+      items:
+        - key: "{{ .Values.meta.name }}/host"
+
+extraVolumes:
+  - name: "{{ .Values.meta.name }}-cache"
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: "{{ .Values.meta.name }}-cache"
+    mountPath: "/opt/{{ .Values.meta.name }}/cache"
+
+migration:
+  enabled: true
+
+  command:
+    - test
+    - migrate
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 200m
+      memory: 1Gi

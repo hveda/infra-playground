@@ -1,0 +1,264 @@
+meta:
+  name: johnny
+  env: test
+  version: v0.1.0
+  ingressHost: test.io
+  ingressPath: /test
+  internalHostname: test.io
+
+image:
+  repository: "moladinTech/test"
+  tag: v0.1.0
+  pullSecrets:
+    - test-secret-1-key
+    - test-secret-2-key
+
+secrets:
+  envFrom:
+    - "{{ .Values.meta.name }}-secret-{{ .Values.meta.env }}"
+    - test-secret-2
+
+  env:
+    - name: test-secret-global
+      keys:
+        - DB_GLOBAL_HOST
+        - DB_GLOBAL_USER
+        - DB_GLOBAL_PASS
+    - name: "{{ .Values.meta.name }}-secret-local-{{ .Values.meta.env }}"
+      keys:
+        - DB_HOST
+        - "{{ .Values.meta.name | upper }}_DB_USER"
+        - "{{ .Values.meta.name | upper }}_DB_PASS"
+
+  volumes:
+    - name: "{{ .Values.meta.name }}-secret-root-{{ .Values.meta.env }}"
+      mounts:
+        - mountPath: "/opt/{{ .Values.meta.name }}/params"
+
+    - name: test-secret-path-test
+      mounts:
+        - mountPath: "/opt/{{ .Values.meta.name }}/params/secret-path.json"
+          subPath: secrets/secret-path.json
+          readOnly: true
+
+        - mountPath: secrets/secret-path.yaml
+          subPath: secrets/secret-path.yaml
+          readOnly: true
+      items:
+        - key: "{{ .Values.meta.name }}/user"
+        - key: "{{ .Values.meta.name }}/password"
+
+configMaps:
+  envFrom:
+    - "{{ .Values.meta.name }}-config-{{ .Values.meta.env }}"
+    - test-config-2
+
+  env:
+    - name: "{{ .Values.meta.name }}-config-global-{{ .Values.meta.env }}"
+      keys:
+        - GLOBAL_HOST
+        - "{{ .Values.meta.name | upper }}_GLOBAL_ENV"
+    - name: test-config-local
+      keys:
+        - APP_HOST
+        - APP_ENV
+
+  volumes:
+    - name: test-config-test
+      mounts:
+        - mountPath: configs
+          readOnly: true
+
+    - name: "{{ .Values.meta.name }}-config-path-{{ .Values.meta.env }}"
+      mounts:
+        - mountPath: configs/config-path.json
+          subPath: config-path.json
+          readOnly: true
+
+        - mountPath: "/opt/{{ .Values.meta.name }}/params/config-path.yaml"
+          subPath: config-path.yaml
+          readOnly: true
+      items:
+        - key: "{{ .Values.meta.name }}/host"
+
+extraVolumes:
+  - name: "{{ .Values.meta.name }}-cache"
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: "{{ .Values.meta.name }}-cache"
+    mountPath: "/opt/{{ .Values.meta.name }}/cache"
+
+server:
+  enabled: true
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+
+  type: grpc
+
+  # port: 8080
+
+  portOverride:
+    - name: grpc-web
+      containerPort: 9090
+      protocol: TCP
+
+  extraPorts:
+    - name: new-port-1
+      containerPort: 123
+      protocol: TCP
+    - name: new-port-2
+      containerPort: 456
+      protocol: TCP
+
+  istio:
+    injected: true
+
+  liveness:
+    override:
+      exec:
+        command:
+          - cat
+          - /tmp/healthy
+      initialDelaySeconds: 5
+      periodSeconds: 5
+
+  readiness:
+    override:
+      tcpSocket:
+        port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 200m
+      memory: 1Gi
+
+  machine:
+    type: preemptible
+
+  tolerations:
+    - key: "node.kubernetes.io/unreachable"
+      operator: "Exists"
+      effect: "NoExecute"
+      tolerationSeconds: 6000
+
+worker:
+  # enabled: true
+
+  podAnnotations:
+    prometheus.io/scrape: "true"
+
+  replicas: 0
+
+  command:
+    - test
+  args:
+    - worker
+
+  liveness:
+    enabled: true
+    override:
+      exec:
+        command:
+          - cat
+          - /tmp/healthy
+      initialDelaySeconds: 5
+      periodSeconds: 5
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 200m
+      memory: 1Gi
+
+service:
+  enabled: true
+
+  portOverride:
+    - port: 9090
+      targetPort: grpc-web
+      protocol: TCP
+      name: grpc-web-svc
+
+  extraPorts:
+    - port: 789
+      targetPort: new-port-1
+      protocol: TCP
+      name: new-port-1-svc
+    - port: 1011
+      targetPort: 456
+      protocol: TCP
+      name: new-port-2-svc
+
+ingress:
+  enabled: true
+
+  className: "kong"
+  annotations: {
+    konghq.com/strip-path: "true",
+    konghq.com/plugins: access-token-introspection
+  }
+
+  issuer:
+    type: namespace
+
+  tls:
+    - hosts:
+        - test.dev
+        - www.test.dev
+        - "{{ .Values.meta.name }}.{{ .Values.meta.env }}.dev"
+      secret: "{{ .Values.meta.name }}-secret-{{ .Values.meta.env }}"
+    - hosts:
+        - test.com
+        - www.test.com
+
+  hosts:
+    - host: test.dev
+      paths:
+        - "/"
+
+    - host: "{{ .Values.meta.name }}.{{ .Values.meta.env }}.dev"
+      paths:
+        - "/"
+
+    - host: test.com
+      paths:
+        - "/"
+
+virtualService:
+  enabled: true
+
+  gateways:
+    - test-gateway/test-gateway
+
+  hosts:
+    - gateway.test.dev
+
+  routes:
+    - match:
+        - uri:
+            prefix: /test/
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: test-app-dev
+            port:
+              number: 80
+          weight: 100
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 20

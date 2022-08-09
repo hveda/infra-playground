@@ -1,0 +1,42 @@
+# Retrieve an access token as the Terraform runner
+data "google_client_config" "default" {}
+data "google_container_cluster" "development" {
+  name = "development"
+}
+
+provider "kubernetes" {
+  host                   = "https://${data.google_container_cluster.development.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(data.google_container_cluster.development.master_auth[0].cluster_ca_certificate)
+}
+
+resource "helm_release" "nginx_ingress" {
+  name       = "ingress-nginx"
+  namespace  = "nginx"
+  repository = "https://kubernetes.github.io/ingress-nginx"
+  chart      = "ingress-nginx"
+
+  force_update     = false
+  create_namespace = true
+
+  set {
+    name  = "service.type"
+    value = "ClusterIP"
+  }
+}
+
+resource "helm_release" "cert-manager" {
+#   depends_on = [ helm_release.nginx_ingress ]
+  name       = "cert-manager"
+  namespace  = "cert-manager"
+  chart      = "cert-manager"
+  repository = "https://charts.jetstack.io"
+
+  force_update     = false
+  create_namespace = true
+
+  set {
+    name  = "installCRDs"
+    value = true
+  }
+}

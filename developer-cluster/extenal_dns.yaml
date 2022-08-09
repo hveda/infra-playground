@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns
+rules:
+- apiGroups: [""]
+  resources: ["services","endpoints","pods"]
+  verbs: ["get","watch","list"]
+- apiGroups: ["extensions","networking.k8s.io"]
+  resources: ["ingresses"] 
+  verbs: ["get","watch","list"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+- kind: ServiceAccount
+  name: external-dns
+  namespace: default
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: external-dns
+  annotations:
+    kubernetes.io/service-account.name: "external-dns"
+type: kubernetes.io/service-account-token
+data:
+  credentials.json:
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: staging-external-dns
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: external-dns
+  template:
+    metadata:
+      labels:
+        app: external-dns
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: external-dns
+        image: k8s.gcr.io/external-dns/external-dns:v0.10.1
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/secrets/service-account/credentials.json
+        volumeMounts:
+        - mountPath: /etc/secrets/service-account/
+          name: google-service-account
+        args:
+        - --source=ingress
+        - --source=service
+        - --domain-filter=tr.de
+        - --provider=google
+        - --google-zone-visibility=private
+        - --policy=sync
+        - --registry=txt
+        - --interval=1m
+        - --publish-internal-services
+      volumes:
+      - name: google-service-account
+        secret:
+          defaultMode: 420
+          secretName: external-dns
+        

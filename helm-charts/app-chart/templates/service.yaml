@@ -1,0 +1,30 @@
+{{- if and .Values.server.enabled .Values.service.enabled (not .Values.worker.enabled) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "server.fullname" . }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    {{- if .Values.service.portOverride }}
+      {{- toYaml .Values.service.portOverride | nindent 4 }}
+    {{- else }}
+    - port: {{ .Values.service.port }}
+      targetPort: {{ include "server.port" . }}
+      protocol: TCP
+      name: {{ .Values.server.type }}
+    {{- end }}
+    {{- with .Values.service.extraPorts }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  selector:
+    name: {{ include "server.name" . }}
+    env: {{ .Values.meta.env }}
+    chart-name: {{ .Chart.Name }}
+{{- end }}

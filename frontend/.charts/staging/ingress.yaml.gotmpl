@@ -1,0 +1,31 @@
+ingress:
+  enabled: true
+  annotations: {
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    kubernetes.io/tls-acme: "true",
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+  }
+  tls:
+    - secretName: {{ requiredEnv "INGRESS_HOST" }}
+      hosts:
+        - {{ requiredEnv "INGRESS_HOST" }}
+  hosts:
+    - host: {{ requiredEnv "INGRESS_HOST" }}
+      paths:
+        - path: {{ requiredEnv "INGRESS_PATH" }}
+          pathType: Prefix
+          backend:
+            service:
+              name: "{{ requiredEnv "APP_NAME" }}"
+              port:
+                number: 8080
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8080
+  annotations: {
+    external-dns.alpha.kubernetes.io/hostname: {{ requiredEnv "INTERNAL_HOSTNAME" }},
+    external-dns.alpha.kubernetes.io/access: "private"
+  }

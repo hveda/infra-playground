@@ -1,0 +1,25 @@
+{{- if and .Values.server.enabled .Values.server.istio.injected .Values.service.enabled .Values.virtualService.enabled (not .Values.worker.enabled) -}}
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: {{ include "server.fullname" . }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+  {{- with .Values.virtualService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.virtualService.gateways }}
+  gateways:
+    {{- range .Values.virtualService.gateways }}
+    - {{ . }}
+    {{- end }}
+  {{- end }}
+  hosts:
+    {{- range .Values.virtualService.hosts }}
+    - {{ . }}
+    {{- end }}
+  http:
+    {{- toYaml .Values.virtualService.routes | nindent 4 }}
+{{- end }}

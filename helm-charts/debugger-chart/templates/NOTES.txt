@@ -1,0 +1,2 @@
+Execute the debugger by running these commands:
+  kubectl exec --namespace {{ .Release.Namespace }} -it {{ include "debugger.name" . }} -- bash 
